@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rubik's Cube Solver</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; }
+    .step { margin: 1rem 0; border-top: 1px solid #ccc; padding-top: 1rem; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 5px; }
+  </style>
+</head>
+<body>
+
+<h1>Rubik's Cube Solver (Naive Algorithm)</h1>
+<div id="app"></div>
+
+<script>
+// Simulated getCubeSvg - Outputs simple face info
+function getCubeSvg(colorString) {
+  const faces = ['U', 'R', 'F', 'D', 'L', 'B'];
+  const div = document.createElement('div');
+  div.innerHTML = `<pre>${faces.map((face, i) => 
+    `${face}: ${colorString.slice(i * 9, i * 9 + 9)}`
+  ).join('\n')}</pre>`;
+  return div;
+}
+
+// Rubik's Cube Class
+class RubiksCube {
+  constructor() {
+    this.faces = {
+      U: Array(9).fill('w'),
+      D: Array(9).fill('y'),
+      F: Array(9).fill('g'),
+      B: Array(9).fill('b'),
+      L: Array(9).fill('o'),
+      R: Array(9).fill('r'),
+    };
+  }
+
+  // Convert full cube to flat string
+  toColorString() {
+    return ['U','R','F','D','L','B'].map(f => this.faces[f].join('')).join('');
+  }
+
+  // Clockwise rotate a face
+  rotateFaceCW(face) {
+    const f = this.faces[face];
+    this.faces[face] = [
+      f[6], f[3], f[0],
+      f[7], f[4], f[1],
+      f[8], f[5], f[2]
+    ];
+  }
+
+  // Apply face move
+  applyMove(move) {
+    const isPrime = move.endsWith("'");
+    const face = move[0];
+    const times = isPrime ? 3 : 1;
+
+    for (let i = 0; i < times; i++) {
+      this.rotateFaceCW(face);
+      this.rotateSideStickers(face);
+    }
+  }
+
+  rotateSideStickers(face) {
+    const f = this.faces;
+    let temp;
+    switch (face) {
+      case 'U':
+        temp = [f.F[0], f.F[1], f.F[2]];
+        [f.F[0], f.F[1], f.F[2]] = [f.R[0], f.R[1], f.R[2]];
+        [f.R[0], f.R[1], f.R[2]] = [f.B[0], f.B[1], f.B[2]];
+        [f.B[0], f.B[1], f.B[2]] = [f.L[0], f.L[1], f.L[2]];
+        [f.L[0], f.L[1], f.L[2]] = temp;
+        break;
+      case 'D':
+        temp = [f.F[6], f.F[7], f.F[8]];
+        [f.F[6], f.F[7], f.F[8]] = [f.L[6], f.L[7], f.L[8]];
+        [f.L[6], f.L[7], f.L[8]] = [f.B[6], f.B[7], f.B[8]];
+        [f.B[6], f.B[7], f.B[8]] = [f.R[6], f.R[7], f.R[8]];
+        [f.R[6], f.R[7], f.R[8]] = temp;
+        break;
+      case 'F':
+        temp = [f.U[6], f.U[7], f.U[8]];
+        [f.U[6], f.U[7], f.U[8]] = [f.L[8], f.L[5], f.L[2]];
+        [f.L[2], f.L[5], f.L[8]] = [f.D[2], f.D[1], f.D[0]];
+        [f.D[0], f.D[1], f.D[2]] = [f.R[0], f.R[3], f.R[6]];
+        [f.R[0], f.R[3], f.R[6]] = temp;
+        break;
+      case 'B':
+        temp = [f.U[0], f.U[1], f.U[2]];
+        [f.U[0], f.U[1], f.U[2]] = [f.R[2], f.R[5], f.R[8]];
+        [f.R[2], f.R[5], f.R[8]] = [f.D[8], f.D[7], f.D[6]];
+        [f.D[6], f.D[7], f.D[8]] = [f.L[6], f.L[3], f.L[0]];
+        [f.L[0], f.L[3], f.L[6]] = temp;
+        break;
+      case 'L':
+        temp = [f.U[0], f.U[3], f.U[6]];
+        [f.U[0], f.U[3], f.U[6]] = [f.B[8], f.B[5], f.B[2]];
+        [f.B[2], f.B[5], f.B[8]] = [f.D[0], f.D[3], f.D[6]];
+        [f.D[0], f.D[3], f.D[6]] = [f.F[0], f.F[3], f.F[6]];
+        [f.F[0], f.F[3], f.F[6]] = temp;
+        break;
+      case 'R':
+        temp = [f.U[2], f.U[5], f.U[8]];
+        [f.U[2], f.U[5], f.U[8]] = [f.F[2], f.F[5], f.F[8]];
+        [f.F[2], f.F[5], f.F[8]] = [f.D[2], f.D[5], f.D[8]];
+        [f.D[2], f.D[5], f.D[8]] = [f.B[6], f.B[3], f.B[0]];
+        [f.B[0], f.B[3], f.B[6]] = temp;
+        break;
+    }
+  }
+
+  // Scramble with random moves
+  scramble(n = 20) {
+    const moves = ['U','D','F','B','L','R'];
+    const suffixes = ['', "'"];
+    const sequence = [];
+    for (let i = 0; i < n; i++) {
+      const move = moves[Math.floor(Math.random() * 6)] + suffixes[Math.floor(Math.random() * 2)];
+      this.applyMove(move);
+      sequence.push(move);
+    }
+    return sequence;
+  }
+
+  // Naive solver: reverse scramble
+  solve(scrambleMoves) {
+    return scrambleMoves.slice().reverse().map(m => m.endsWith("'") ? m[0] : m + "'");
+  }
+}
+
+// Initialize cube and container
+const app = document.getElementById("app");
+const cube = new RubiksCube();
+const scramble = cube.scramble(10);
+
+// Show scramble
+app.innerHTML += `<h3>Scramble Applied: ${scramble.join(' ')}</h3>`;
+app.appendChild(getCubeSvg(cube.toColorString()));
+
+// Solve and show each step
+const solution = cube.solve(scramble);
+solution.forEach((move, i) => {
+  cube.applyMove(move);
+  const stepDiv = document.createElement('div');
+  stepDiv.className = "step";
+  stepDiv.innerHTML = `<strong>Step ${i+1}: Move ${move}</strong>`;
+  stepDiv.appendChild(getCubeSvg(cube.toColorString()));
+  app.appendChild(stepDiv);
+});
+</script>
+
+</body>
+</html>
